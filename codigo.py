@@ -93,8 +93,8 @@ ataque_test = ataque.iloc[int(ataque.shape[0]*0.8):,:]
 import matplotlib.pyplot as plt
 import numpy as np
 
-df_train = pd.concat([anular_train, pasos_train, tecnica_train, ataque_train], axis=0, ignore_index=True)
-df_test = pd.concat([anular_test, pasos_test, tecnica_test, ataque_test], axis=0, ignore_index=True)
+df_train = pd.concat([tecnica_train, pasos_train, ataque_train, anular_train], axis=0, ignore_index=True)
+df_test = pd.concat([ tecnica_test, pasos_test, ataque_test, anular_test], axis=0, ignore_index=True)
 
 ref_signals = df_train['ref_signal'].value_counts()
 plt.bar(range(len(ref_signals)), ref_signals.values)
@@ -156,21 +156,22 @@ for ref_signal in np.unique(df_train['ref_signal']):
 # %%
 #NORMALIZAMOS LOS DATOS
 #normalize the data less the time and the reference signal columns
-df_train["accel_x"] = (df_train["accel_x"] - min(df_train["accel_x"].values)) / (max(df_train["accel_x"].values) - min(df_train["accel_x"].values))
-df_train["accel_y"] = (df_train["accel_y"] - min(df_train["accel_y"].values)) / (max(df_train["accel_y"].values) - min(df_train["accel_y"].values))
-df_train["accel_z"] = (df_train["accel_z"] - min(df_train["accel_z"].values)) / (max(df_train["accel_z"].values) - min(df_train["accel_z"].values))
+# df_train["accel_x"] = (df_train["accel_x"] - min(df_train["accel_x"].values)) / (max(df_train["accel_x"].values) - min(df_train["accel_x"].values))
+# df_train["accel_y"] = (df_train["accel_y"] - min(df_train["accel_y"].values)) / (max(df_train["accel_y"].values) - min(df_train["accel_y"].values))
+# df_train["accel_z"] = (df_train["accel_z"] - min(df_train["accel_z"].values)) / (max(df_train["accel_z"].values) - min(df_train["accel_z"].values))
 
-df_train["gyro_x"] = (df_train["gyro_x"] - min(df_train["gyro_x"].values)) / (max(df_train["gyro_x"].values) - min(df_train["gyro_x"].values))
-df_train["gyro_y"] = (df_train["gyro_y"] - min(df_train["gyro_y"].values)) / (max(df_train["gyro_y"].values) - min(df_train["gyro_y"].values))
-df_train["gyro_z"] = (df_train["gyro_z"] - min(df_train["gyro_z"].values)) / (max(df_train["gyro_z"].values) - min(df_train["gyro_z"].values))
+# df_train["gyro_x"] = (df_train["gyro_x"] - min(df_train["gyro_x"].values)) / (max(df_train["gyro_x"].values) - min(df_train["gyro_x"].values))
+# df_train["gyro_y"] = (df_train["gyro_y"] - min(df_train["gyro_y"].values)) / (max(df_train["gyro_y"].values) - min(df_train["gyro_y"].values))
+# df_train["gyro_z"] = (df_train["gyro_z"] - min(df_train["gyro_z"].values)) / (max(df_train["gyro_z"].values) - min(df_train["gyro_z"].values))
 
-df_test["accel_x"] = (df_test["accel_x"] - min(df_test["accel_x"].values)) / (max(df_test["accel_x"].values) - min(df_test["accel_x"].values))
-df_test["accel_y"] = (df_test["accel_y"] - min(df_test["accel_y"].values)) / (max(df_test["accel_y"].values) - min(df_test["accel_y"].values))
-df_test["accel_z"] = (df_test["accel_z"] - min(df_test["accel_z"].values)) / (max(df_test["accel_z"].values) - min(df_test["accel_z"].values))
+# df_test["accel_x"] = (df_test["accel_x"] - min(df_test["accel_x"].values)) / (max(df_test["accel_x"].values) - min(df_test["accel_x"].values))
+# df_test["accel_y"] = (df_test["accel_y"] - min(df_test["accel_y"].values)) / (max(df_test["accel_y"].values) - min(df_test["accel_y"].values))
+# df_test["accel_z"] = (df_test["accel_z"] - min(df_test["accel_z"].values)) / (max(df_test["accel_z"].values) - min(df_test["accel_z"].values))
 
-df_test["gyro_x"] = (df_test["gyro_x"] - min(df_test["gyro_x"].values)) / (max(df_test["gyro_x"].values) - min(df_test["gyro_x"].values))
-df_test["gyro_y"] = (df_test["gyro_y"] - min(df_test["gyro_y"].values)) / (max(df_test["gyro_y"].values) - min(df_test["gyro_y"].values))
-df_test["gyro_z"] = (df_test["gyro_z"] - min(df_test["gyro_z"].values)) / (max(df_test["gyro_z"].values) - min(df_test["gyro_z"].values))
+# df_test["gyro_x"] = (df_test["gyro_x"] - min(df_test["gyro_x"].values)) / (max(df_test["gyro_x"].values) - min(df_test["gyro_x"].values))
+# df_test["gyro_y"] = (df_test["gyro_y"] - min(df_test["gyro_y"].values)) / (max(df_test["gyro_y"].values) - min(df_test["gyro_y"].values))
+# df_test["gyro_z"] = (df_test["gyro_z"] - min(df_test["gyro_z"].values)) / (max(df_test["gyro_z"].values) - min(df_test["gyro_z"].values))
+
 
 #comprobar que se ha hecho bien
 plt.figure(figsize=(5,5))
@@ -265,14 +266,14 @@ from keras.layers import Conv1D, MaxPooling1D, GlobalAveragePooling1D, Flatten
 
 model_m = Sequential()
 
-model_m.add(Conv1D(100, 4, activation='relu', input_shape=(NGESTOS, 
+model_m.add(Conv1D(20, 4, activation='relu', input_shape=(NGESTOS, 
                                                             num_sensors)))
-model_m.add(Conv1D(100, 4, activation='relu'))
+model_m.add(Conv1D(20, 4, activation='relu'))
 model_m.add(MaxPooling1D(2))
-model_m.add(Conv1D(160, 4, activation='relu'))
-model_m.add(Conv1D(160, 4, activation='relu'))
+model_m.add(Conv1D(30, 4, activation='relu'))
+model_m.add(Conv1D(30, 4, activation='relu'))
 model_m.add(GlobalAveragePooling1D())
-model_m.add(Dropout(0.5))
+#model_m.add(Dropout(0.5))
 model_m.add(Dense(num_classes, activation='softmax'))
 """
 model_m.add(Conv1D(filters=16, kernel_size=4, padding='valid', activation='relu', strides=1, input_shape=(NGESTOS, num_sensors)))
@@ -303,7 +304,7 @@ model_m.compile(loss='categorical_crossentropy',
 #%% Entrenamiento
 
 BATCH_SIZE = 512  # 400 dentro de x_train.shape
-EPOCHS = 150
+EPOCHS = 80
 
 history = model_m.fit(x_train,
                       y_train,
@@ -333,7 +334,7 @@ plt.show()
 #%% Evaluamos el modelo en los datos de test
 
 # actualizar dependiendo del nombre del modelo guardado
-model = keras.models.load_model("modelos/best_model.122-0.01.h5")
+model = keras.models.load_model("modelos/best_model.74-0.03.h5")
 
 y_test_hot = cat_encoder.fit_transform(y_test.reshape(len(y_test),1))
 y_test = y_test_hot.toarray()
@@ -381,5 +382,17 @@ show_confusion_matrix(max_y_test, max_y_pred_test)
 
 print(classification_report(max_y_test, max_y_pred_test))
 
+
+# %%
+# Hacemos inferencia con el mejor modelo
+
+import keras
+from keras.models import Sequential
+
+model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
+# %%
+# Predecimos con el modelo cargado el primer elemento de xtest
+
+print(model_inf.predict(x_test[1465].reshape(1, 28, 6)))
 
 # %%
