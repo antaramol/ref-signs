@@ -154,7 +154,7 @@ for ref_signal in np.unique(df_train['ref_signal']):
 
 
 # %%
-#NORMALIZAMOS LOS DATOS
+#NORMALIZAMOS LOS DATOS (no le gusta)
 #normalize the data less the time and the reference signal columns
 # df_train["accel_x"] = (df_train["accel_x"] - min(df_train["accel_x"].values)) / (max(df_train["accel_x"].values) - min(df_train["accel_x"].values))
 # df_train["accel_y"] = (df_train["accel_y"] - min(df_train["accel_y"].values)) / (max(df_train["accel_y"].values) - min(df_train["accel_y"].values))
@@ -394,5 +394,100 @@ model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
 # Predecimos con el modelo cargado el primer elemento de xtest
 
 print(model_inf.predict(x_test[1465].reshape(1, 28, 6)))
+
+
+# %%
+#DATA AUGMENTATION
+#Augmentation based on interpolation
+x_aug = np.zeros((x_train.shape[0]*2, x_train.shape[1], x_train.shape[2]))
+y_aug = np.zeros((y_train.shape[0]*2, y_train.shape[1]))
+for i in range(x_train.shape[0]):
+    x_aug[2*i] = x_train[i]
+    x_aug[2*i-1] = (x_train[i] + x_train[i-2])/2 
+    y_aug[2*i] = y_train[i]
+    y_aug[2*i+1] = y_train[i]
+
+# %%
+# Entrenamos el modelo con los datos aumentados
+
+BATCH_SIZE = 512  # 400 dentro de x_train.shape
+EPOCHS = 100
+
+history = model_m.fit(x_aug,
+                      y_aug,
+                      batch_size=BATCH_SIZE,
+                      epochs=EPOCHS,
+                      callbacks=callbacks_list,
+                      validation_split=0.2,
+                      verbose=1)
+
+#%% 
+# Visualización entrenamiento
+
+from sklearn.metrics import classification_report
+
+plt.figure(figsize=(6, 4))
+plt.plot(history.history['accuracy'], 'r', label='Accuracy of training data')
+plt.plot(history.history['val_accuracy'], 'b', label='Accuracy of validation data')
+plt.plot(history.history['loss'], 'r--', label='Loss of training data')
+plt.plot(history.history['val_loss'], 'b--', label='Loss of validation data')
+plt.title('Model Accuracy and Loss')
+plt.ylabel('Accuracy and Loss')
+plt.xlabel('Training Epoch')
+plt.ylim(0)
+plt.legend()
+plt.show()
+
+#%% Evaluamos el modelo en los datos de test
+
+# actualizar dependiendo del nombre del modelo guardado
+model = keras.models.load_model("modelos/best_model.87-0.05.h5")
+
+y_test_hot = cat_encoder.fit_transform(y_test.reshape(len(y_test),1))
+y_test = y_test_hot.toarray()
+
+test_loss, test_acc = model.evaluate(x_test, y_test)
+
+print("Test accuracy", test_acc)
+print("Test loss", test_loss)
+
+#%%
+# Print confusion matrix for training data
+y_pred_train = model_m.predict(x_train)
+# Take the class with the highest probability from the train predictions
+max_y_pred_train = np.argmax(y_pred_train, axis=1)
+max_y_train = np.argmax(y_train, axis=1)
+print(classification_report(max_y_train, max_y_pred_train))
+
+#%%
+import seaborn as sns
+from sklearn import metrics
+
+def show_confusion_matrix(validations, predictions):
+
+    matrix = metrics.confusion_matrix(validations, predictions)
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(matrix,
+                cmap='coolwarm',
+                linecolor='white',
+                linewidths=1,
+                xticklabels=ref_signals.index,
+                yticklabels=ref_signals.index,
+                annot=True,
+                fmt='d')
+    plt.title('Confusion Matrix')
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    plt.show()
+
+y_pred_test = model_m.predict(x_test)
+# Toma la clase con la mayor probabilidad a partir de las predicciones de la prueba
+max_y_pred_test = np.argmax(y_pred_test, axis=1)
+max_y_test = np.argmax(y_test, axis=1)
+
+show_confusion_matrix(max_y_test, max_y_pred_test)
+
+print(classification_report(max_y_test, max_y_pred_test))
+
 
 # %%
