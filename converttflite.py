@@ -253,8 +253,13 @@ x_test, y_test = create_segments_and_labels(df_test,
 
 # %%
 #convert using full integer quantization
+xx_train = x_train[0:25]
+
+np.append(xx_train, x_train[3100:3125])
+np.append(xx_train,x_train[6200:6225])
+np.append(xx_train,x_train[9300:9325])
 def representative_data_gen():
-  for input_value in tf.data.Dataset.from_tensor_slices(x_train).batch(1).take(100):
+  for input_value in tf.data.Dataset.from_tensor_slices(xx_train).batch(1).take(100):
     yield [input_value]
 
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
@@ -267,3 +272,8 @@ converter.inference_input_type = tf.uint8
 converter.inference_output_type = tf.uint8
 
 tflite_model_quant = converter.convert()
+#%%
+# Save the model.
+open("quantized2_model.tflite", "wb").write(tflite_model_quant)
+
+# %%
