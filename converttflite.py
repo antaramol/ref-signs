@@ -1,4 +1,16 @@
 #%%
+#CONVERT MODEL TO TFLITE
+import tensorflow as tf
+
+model = tf.keras.models.load_model('modelos/best_model.74-0.03.h5')
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
+
+# Save the model.
+open("converted_model.tflite", "wb").write(tflite_model)
+
+
+#%%
 #READ DATA FROM ONE TYPE OF SIGNAL
 import pandas as pd
 import glob
@@ -236,276 +248,22 @@ x_test, y_test = create_segments_and_labels(df_test,
                                               STEP_DISTANCE,
                                               LABEL)
 
-#%% observamos la nueva forma de los datos (28, 6)
 
-print('x_train shape: ', x_train.shape)
-print(x_train.shape[0], 'training samples')
-print('y_train shape: ', y_train.shape)
-
-#%% datos de entrada de la red neuronal
-
-num_time_periods, num_sensors = x_train.shape[1], x_train.shape[2]
-num_classes = le.classes_.size
-print(list(le.classes_))
-
-#%% 
-# ONE HOT ENCODING PARA DATOS DE SALIDA
-
-from sklearn.preprocessing import OneHotEncoder
-
-# primero se hace el label encoder, hecho arriba, y para entrenar mejor la red se pone en modo vector
-cat_encoder = OneHotEncoder()
-y_train_hot = cat_encoder.fit_transform(y_train.reshape(len(y_train),1))
-y_train = y_train_hot.toarray()
-
-#%% RED NEURONAL
-import keras
-from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.layers import Conv1D, MaxPooling1D, GlobalAveragePooling1D, Flatten
-
-model_m = Sequential()
-
-model_m.add(Conv1D(20, 4, activation='relu', input_shape=(NGESTOS, 
-                                                            num_sensors)))
-model_m.add(Conv1D(20, 4, activation='relu'))
-model_m.add(MaxPooling1D(2))
-model_m.add(Conv1D(30, 4, activation='relu'))
-model_m.add(Conv1D(30, 4, activation='relu'))
-model_m.add(GlobalAveragePooling1D())
-#model_m.add(Dropout(0.5))
-model_m.add(Dense(num_classes, activation='softmax'))
-"""
-model_m.add(Conv1D(filters=16, kernel_size=4, padding='valid', activation='relu', strides=1, input_shape=(NGESTOS, num_sensors)))
-model_m.add(Dropout(0.2))
-model_m.add(Flatten())
-model_m.add(Dense(num_classes, activation='relu'))
-model_m.add(Dropout(0.2))
-model_m.add(Dense(4, activation='softmax'))
-model_m.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-"""
-print(model_m.summary())
-
-
-#%% Guardamos el mejor modelo y utilizamos early stopping
-
-callbacks_list = [
-    keras.callbacks.ModelCheckpoint(
-        filepath='modelos/best_model.{epoch:02d}-{val_loss:.2f}.h5',
-        monitor='val_loss', save_best_only=True),
-]
-
-#%% determinamos la función de pérdida, optimizador y métrica de funcionamiento 
-
-model_m.compile(loss='categorical_crossentropy',
-                optimizer='adam', metrics=['accuracy'])
-
-
-#%% Entrenamiento
-
-BATCH_SIZE = 512  # 400 dentro de x_train.shape
-EPOCHS = 80
-
-history = model_m.fit(x_train,
-                      y_train,
-                      batch_size=BATCH_SIZE,
-                      epochs=EPOCHS,
-                      callbacks=callbacks_list,
-                      validation_split=0.2,
-                      verbose=1)
-
-#%% 
-# Visualización entrenamiento
-
-from sklearn.metrics import classification_report
-
-plt.figure(figsize=(6, 4))
-plt.plot(history.history['accuracy'], 'r', label='Accuracy of training data')
-plt.plot(history.history['val_accuracy'], 'b', label='Accuracy of validation data')
-plt.plot(history.history['loss'], 'r--', label='Loss of training data')
-plt.plot(history.history['val_loss'], 'b--', label='Loss of validation data')
-plt.title('Model Accuracy and Loss')
-plt.ylabel('Accuracy and Loss')
-plt.xlabel('Training Epoch')
-plt.ylim(0)
-plt.legend()
-plt.show()
-
-#%% Evaluamos el modelo en los datos de test
-
-# actualizar dependiendo del nombre del modelo guardado
-model = keras.models.load_model("modelos/best_model.74-0.03.h5")
-
-y_test_hot = cat_encoder.fit_transform(y_test.reshape(len(y_test),1))
-y_test = y_test_hot.toarray()
-
-test_loss, test_acc = model.evaluate(x_test, y_test)
-
-print("Test accuracy", test_acc)
-print("Test loss", test_loss)
-
-#%%
-# Print confusion matrix for training data
-y_pred_train = model_m.predict(x_train)
-# Take the class with the highest probability from the train predictions
-max_y_pred_train = np.argmax(y_pred_train, axis=1)
-max_y_train = np.argmax(y_train, axis=1)
-print(classification_report(max_y_train, max_y_pred_train))
-
-#%%
-import seaborn as sns
-from sklearn import metrics
-
-def show_confusion_matrix(validations, predictions):
-
-    matrix = metrics.confusion_matrix(validations, predictions)
-    plt.figure(figsize=(6, 4))
-    sns.heatmap(matrix,
-                cmap='coolwarm',
-                linecolor='white',
-                linewidths=1,
-                xticklabels=ref_signals.index,
-                yticklabels=ref_signals.index,
-                annot=True,
-                fmt='d')
-    plt.title('Confusion Matrix')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    plt.show()
-
-y_pred_test = model_m.predict(x_test)
-# Toma la clase con la mayor probabilidad a partir de las predicciones de la prueba
-max_y_pred_test = np.argmax(y_pred_test, axis=1)
-max_y_test = np.argmax(y_test, axis=1)
-
-show_confusion_matrix(max_y_test, max_y_pred_test)
-
-print(classification_report(max_y_test, max_y_pred_test))
 
 
 # %%
-# Hacemos inferencia con el mejor modelo
+#convert using full integer quantization
+def representative_data_gen():
+  for input_value in tf.data.Dataset.from_tensor_slices(x_train).batch(1).take(100):
+    yield [input_value]
 
-import keras
-from keras.models import Sequential
-import tensorflow as tf
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+converter.representative_dataset = representative_data_gen
+# Ensure that if any ops can't be quantized, the converter throws an error
+converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+# Set the input and output tensors to uint8 (APIs added in r2.3)
+converter.inference_input_type = tf.uint8
+converter.inference_output_type = tf.uint8
 
-#model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
-#load tflite saved model
-interpreter = tf.lite.Interpreter("quantized_model.tflite")
-interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()[0]
-output_details = interpreter.get_output_details()[0]
-
-#predict with tflite model
-input_scale, input_zero_point = input_details["quantization"]
-test_refsign = x_test[1465].reshape(1, 28, 6) / input_scale + input_zero_point
-interpreter.set_tensor(input_details['index'], test_refsign)
-interpreter.invoke()
-output_data = interpreter.get_tensor(output_details['index'])
-
-
-# %%
-# Predecimos con el modelo cargado el primer elemento de xtest
-import keras
-from keras.models import Sequential
-
-model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
-print(model_inf.predict(x_test[1465].reshape(1, 28, 6)))
-
-
-# %%
-#DATA AUGMENTATION
-#Augmentation based on interpolation
-x_aug = np.zeros((x_train.shape[0]*2, x_train.shape[1], x_train.shape[2]))
-y_aug = np.zeros((y_train.shape[0]*2, y_train.shape[1]))
-for i in range(x_train.shape[0]):
-    x_aug[2*i] = x_train[i]
-    x_aug[2*i-1] = (x_train[i] + x_train[i-2])/2 
-    y_aug[2*i] = y_train[i]
-    y_aug[2*i+1] = y_train[i]
-
-# %%
-# Entrenamos el modelo con los datos aumentados
-
-BATCH_SIZE = 512  # 400 dentro de x_train.shape
-EPOCHS = 100
-
-history = model_m.fit(x_aug,
-                      y_aug,
-                      batch_size=BATCH_SIZE,
-                      epochs=EPOCHS,
-                      callbacks=callbacks_list,
-                      validation_split=0.2,
-                      verbose=1)
-
-#%% 
-# Visualización entrenamiento
-
-from sklearn.metrics import classification_report
-
-plt.figure(figsize=(6, 4))
-plt.plot(history.history['accuracy'], 'r', label='Accuracy of training data')
-plt.plot(history.history['val_accuracy'], 'b', label='Accuracy of validation data')
-plt.plot(history.history['loss'], 'r--', label='Loss of training data')
-plt.plot(history.history['val_loss'], 'b--', label='Loss of validation data')
-plt.title('Model Accuracy and Loss')
-plt.ylabel('Accuracy and Loss')
-plt.xlabel('Training Epoch')
-plt.ylim(0)
-plt.legend()
-plt.show()
-
-#%% Evaluamos el modelo en los datos de test
-
-# actualizar dependiendo del nombre del modelo guardado
-model = keras.models.load_model("modelos/best_model.87-0.05.h5")
-
-y_test_hot = cat_encoder.fit_transform(y_test.reshape(len(y_test),1))
-y_test = y_test_hot.toarray()
-
-test_loss, test_acc = model.evaluate(x_test, y_test)
-
-print("Test accuracy", test_acc)
-print("Test loss", test_loss)
-
-#%%
-# Print confusion matrix for training data
-y_pred_train = model_m.predict(x_train)
-# Take the class with the highest probability from the train predictions
-max_y_pred_train = np.argmax(y_pred_train, axis=1)
-max_y_train = np.argmax(y_train, axis=1)
-print(classification_report(max_y_train, max_y_pred_train))
-
-#%%
-import seaborn as sns
-from sklearn import metrics
-
-def show_confusion_matrix(validations, predictions):
-
-    matrix = metrics.confusion_matrix(validations, predictions)
-    plt.figure(figsize=(6, 4))
-    sns.heatmap(matrix,
-                cmap='coolwarm',
-                linecolor='white',
-                linewidths=1,
-                xticklabels=ref_signals.index,
-                yticklabels=ref_signals.index,
-                annot=True,
-                fmt='d')
-    plt.title('Confusion Matrix')
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    plt.show()
-
-y_pred_test = model_m.predict(x_test)
-# Toma la clase con la mayor probabilidad a partir de las predicciones de la prueba
-max_y_pred_test = np.argmax(y_pred_test, axis=1)
-max_y_test = np.argmax(y_test, axis=1)
-
-show_confusion_matrix(max_y_test, max_y_pred_test)
-
-print(classification_report(max_y_test, max_y_pred_test))
-
-
-# %%
+tflite_model_quant = converter.convert()
