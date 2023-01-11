@@ -246,7 +246,7 @@ from pycoral.adapters import classify
 import numpy as np
 
 # modelo, etiqeutas e imagen de ejemplo
-model_file = "quantized_model_edgetpu.tflite"
+model_file = "prueba_Antonio.tflite"
 labels = ['anular','ataque','pasos','tecnica']
 
 #%%
@@ -255,17 +255,18 @@ labels = ['anular','ataque','pasos','tecnica']
 interpreter = edgetpu.make_interpreter(model_file)
 # reserva de los tensores
 interpreter.allocate_tensors()
-
+input_details = interpreter.get_input_details()
 # Ajustamos datos entrada
-size = common.input_size(interpreter) # datos entrada
+# size = common.input_size(interpreter) # datos entrada
 
 # Cargamos la muestra que vamos a usar
-prueba = x_test[1465].reshape(1, 28, 6)
+prueba = x_test[1405].reshape(1, 28, 6)
 # Ejecutar inferencia
 common.set_input(interpreter, prueba)
 interpreter.invoke()
-classes = classify.get_classes(interpreter, top_k=1)
+classes = classify.get_classes(interpreter, top_k=4)
 
-#%% Comprobamos el resultados
-repuesta = np.argmax(classes)
+# Comprobamos el resultados
+repuesta = classes[0].id
 print(labels[repuesta])
+# %%

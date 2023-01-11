@@ -392,7 +392,7 @@ import tensorflow as tf
 
 #model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
 #load tflite saved model
-interpreter = tf.lite.Interpreter("quantized_model.tflite")
+interpreter = tf.lite.Interpreter("quantized2_model.tflite")
 interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()[0]
 output_details = interpreter.get_output_details()[0]
