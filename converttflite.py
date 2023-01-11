@@ -259,13 +259,7 @@ x_test, y_test = create_segments_and_labels(df_test,
 
 # %%
 #convert using full integer quantization
-#take 25 samples of xtrain each 3100 samples
-xx_train1 = x_train[0:25] #first 25 samples
-xx_train2 = x_train[3100:3125] #second 25 samples
-xx_train3 = x_train[6200:6225] #third 25 samples
-xx_train4 = x_train[9300:9325] #fourth 25 samples
 
-xx_train = np.concatenate((xx_train1, xx_train2, xx_train3, xx_train4), axis=0)
 
 def representative_dataset():
   for data in tf.data.Dataset.from_tensor_slices((x_train)).batch(1).take(100):
@@ -282,6 +276,12 @@ tflite_model_quant = converter.convert()
 # Save the model.
 tflite_model_quant_file = tflite_models_dir/"model_quant.tflite"
 tflite_model_quant_file.write_bytes(tflite_model_quant)
+
+interpreter = tf.lite.Interpreter(model_content=tflite_model_quant)
+input_type = interpreter.get_input_details()[0]['dtype']
+print('input: ', input_type)
+output_type = interpreter.get_output_details()[0]['dtype']
+print('output: ', output_type)
 # %%
 # Comparamos modelos
 
@@ -352,3 +352,4 @@ def evaluate_model(tflite_file, model_type):
 evaluate_model(tflite_model_file, model_type="Float")
 
 evaluate_model(tflite_model_quant_file, model_type="Quantized")
+# %%
