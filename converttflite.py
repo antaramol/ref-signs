@@ -6,8 +6,14 @@ model = tf.keras.models.load_model('modelos/best_model.74-0.03.h5')
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
-# Save the model.
-open("prueba_Antonio.tflite", "wb").write(tflite_model)
+# Save the model
+import pathlib
+
+tflite_models_dir = pathlib.Path("models/")
+tflite_models_dir.mkdir(exist_ok=True, parents=True)
+
+tflite_model_file = tflite_models_dir/"model.tflite"
+tflite_model_file.write_bytes(tflite_model)
 
 
 #%%
@@ -271,9 +277,78 @@ converter.representative_dataset = representative_dataset
 converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
 converter.inference_input_type = tf.int8  # or tf.uint8
 converter.inference_output_type = tf.int8  # or tf.uint8
-tflite_quant_model = converter.convert()
+tflite_model_quant = converter.convert()
 #%%
 # Save the model.
-open("prueba_Jacinto_model.tflite", "wb").write(tflite_quant_model)
+tflite_model_quant_file = tflite_models_dir/"model_quant.tflite"
+tflite_model_quant_file.write_bytes(tflite_model_quant)
+# %%
+# Comparamos modelos
+
+# Helper function to run inference on a TFLite model
+def run_tflite_model(tflite_file, test_indices):
+  global x_test
+
+  # Initialize the interpreter
+  interpreter = tf.lite.Interpreter(model_path=str(tflite_file))
+  interpreter.allocate_tensors()
+
+  input_details = interpreter.get_input_details()[0]
+  output_details = interpreter.get_output_details()[0]
+
+  predictions = np.zeros((len(test_indices),), dtype=int)
+  for i, test_image_index in enumerate(test_indices):
+    test_image = x_test[test_image_index]
+    test_label = y_test[test_image_index]
+
+    # Check if the input type is quantized, then rescale input data to uint8
+    if input_details['dtype'] == np.uint8:
+      input_scale, input_zero_point = input_details["quantization"]
+      test_image = test_image / input_scale + input_zero_point
+
+    test_image = np.expand_dims(test_image, axis=0).astype(input_details["dtype"])
+    interpreter.set_tensor(input_details["index"], test_image)
+    interpreter.invoke()
+    output = interpreter.get_tensor(output_details["index"])[0]
+
+    predictions[i] = output.argmax()
+
+  return predictions
 
 # %%
+
+## Helper function to test the models on one image
+def test_model(tflite_file, test_index,model_type):
+  global y_test
+
+  predictions = run_tflite_model(tflite_file, [test_index])
+  #print(predictions)
+  template = model_type + " Model \n True:" + str(y_test[test_index]) + ", Predicted:" + str(predictions)
+  print(template)
+
+# %%
+
+test_index = 2000
+#Modelos
+test_model(tflite_model_file, test_index, model_type="Float")
+
+test_model(tflite_model_quant_file, test_index, model_type="Quantized")
+
+# %%
+# Helper function to evaluate a TFLite model on all images
+def evaluate_model(tflite_file, model_type):
+  global x_test
+  global y_test
+
+  test_indices = range(x_test.shape[0])
+  predictions = run_tflite_model(tflite_file, test_indices)
+
+  accuracy = (np.sum(y_test== predictions) * 100) / len(x_test)
+
+  print('%s model accuracy is %.4f%% (Number of test samples=%d)' % (
+      model_type, accuracy, len(x_test)))
+
+# %%
+evaluate_model(tflite_model_file, model_type="Float")
+
+evaluate_model(tflite_model_quant_file, model_type="Quantized")
