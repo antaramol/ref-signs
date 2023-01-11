@@ -7,7 +7,7 @@ converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
 # Save the model.
-open("converted_model.tflite", "wb").write(tflite_model)
+open("prueba_Antonio.tflite", "wb").write(tflite_model)
 
 
 #%%
@@ -261,9 +261,6 @@ xx_train4 = x_train[9300:9325] #fourth 25 samples
 
 xx_train = np.concatenate((xx_train1, xx_train2, xx_train3, xx_train4), axis=0)
 
-np.append(xx_train, x_train[3100:3125])
-np.append(xx_train,x_train[6200:6225])
-np.append(xx_train,x_train[9300:9325])
 def representative_data_gen():
   for input_value in tf.data.Dataset.from_tensor_slices(xx_train).batch(1).take(100):
     yield [input_value]
