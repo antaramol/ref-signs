@@ -261,22 +261,19 @@ xx_train4 = x_train[9300:9325] #fourth 25 samples
 
 xx_train = np.concatenate((xx_train1, xx_train2, xx_train3, xx_train4), axis=0)
 
-def representative_data_gen():
-  for input_value in tf.data.Dataset.from_tensor_slices(xx_train).batch(1).take(100):
-    yield [input_value]
+def representative_dataset():
+  for data in tf.data.Dataset.from_tensor_slices((x_train)).batch(1).take(100):
+    yield [tf.dtypes.cast(data, tf.float32)]
 
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
-converter.representative_dataset = representative_data_gen
-# Ensure that if any ops can't be quantized, the converter throws an error
+converter.representative_dataset = representative_dataset
 converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-# Set the input and output tensors to uint8 (APIs added in r2.3)
-converter.inference_input_type = tf.uint8
-converter.inference_output_type = tf.uint8
-
-tflite_model_quant = converter.convert()
+converter.inference_input_type = tf.int8  # or tf.uint8
+converter.inference_output_type = tf.int8  # or tf.uint8
+tflite_quant_model = converter.convert()
 #%%
 # Save the model.
-open("quantized2_model.tflite", "wb").write(tflite_model_quant)
+open("prueba_Jacinto_model.tflite", "wb").write(tflite_quant_model)
 
 # %%
