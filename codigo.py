@@ -346,7 +346,7 @@ print("Test loss", test_loss)
 
 #%%
 # Print confusion matrix for training data
-y_pred_train = model_m.predict(x_train)
+y_pred_train = model.predict(x_train)
 # Take the class with the highest probability from the train predictions
 max_y_pred_train = np.argmax(y_pred_train, axis=1)
 max_y_train = np.argmax(y_train, axis=1)
@@ -373,7 +373,7 @@ def show_confusion_matrix(validations, predictions):
     plt.xlabel('Predicted Label')
     plt.show()
 
-y_pred_test = model_m.predict(x_test)
+y_pred_test = model.predict(x_test)
 # Toma la clase con la mayor probabilidad a partir de las predicciones de la prueba
 max_y_pred_test = np.argmax(y_pred_test, axis=1)
 max_y_test = np.argmax(y_test, axis=1)
@@ -381,37 +381,6 @@ max_y_test = np.argmax(y_test, axis=1)
 show_confusion_matrix(max_y_test, max_y_pred_test)
 
 print(classification_report(max_y_test, max_y_pred_test))
-
-
-# %%
-# Hacemos inferencia con el mejor modelo
-
-import keras
-from keras.models import Sequential
-import tensorflow as tf
-
-#model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
-#load tflite saved model
-interpreter = tf.lite.Interpreter("quantized2_model.tflite")
-interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()[0]
-output_details = interpreter.get_output_details()[0]
-
-#predict with tflite model
-input_scale, input_zero_point = input_details["quantization"]
-test_refsign = x_test[1465].reshape(1, 28, 6) / input_scale + input_zero_point
-interpreter.set_tensor(input_details['index'], test_refsign)
-interpreter.invoke()
-output_data = interpreter.get_tensor(output_details['index'])
-
-
-# %%
-# Predecimos con el modelo cargado el primer elemento de xtest
-import keras
-from keras.models import Sequential
-
-model_inf = keras.models.load_model("modelos/best_model.74-0.03.h5")
-print(model_inf.predict(x_test[1465].reshape(1, 28, 6)))
 
 
 # %%
